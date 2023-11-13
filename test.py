@@ -2,7 +2,6 @@
 
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 from transformers import FuyuProcessor, FuyuForCausalLM
 from PIL import Image
