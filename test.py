@@ -8,19 +8,13 @@ from PIL import Image
 import requests
 from io import BytesIO
 
-import sys
-
-print(f"Python Executable: {sys.executable}")
-print(f"Python Paths: {sys.path}")
-
 device = torch.device("cuda")
 
 # load model and processor
 model_id = "adept/fuyu-8b"
 processor = FuyuProcessor.from_pretrained(model_id)
 model = FuyuForCausalLM.from_pretrained(model_id)
-# model = FuyuForCausalLM.from_pretrained(model_id, load_in_8bit=True)
-# model = FuyuForCausalLM.from_pretrained(model_id, load_in_4bit=True)
+model = FuyuForCausalLM.from_pretrained(model_id, load_in_8bit=True)
 
 model.eval()
 
