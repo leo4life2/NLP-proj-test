@@ -8,8 +8,10 @@ from PIL import Image
 import requests
 from io import BytesIO
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
+import sys
+
+print(f"Python Executable: {sys.executable}")
+print(f"Python Paths: {sys.path}")
 
 device = torch.device("cuda")
 
