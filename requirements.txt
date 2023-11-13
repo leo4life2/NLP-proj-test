@@ -2,3 +2,5 @@ git+https://github.com/huggingface/transformers.git
 tqdm
 peft
 bitsandbytes
+scipy
+Pillow

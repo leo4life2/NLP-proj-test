@@ -8,6 +8,9 @@ from PIL import Image
 import requests
 from io import BytesIO
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 device = torch.device("cuda")
 
 # load model and processor
