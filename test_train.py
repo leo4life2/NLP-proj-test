@@ -1,16 +1,17 @@
 import torch
-from transformers import AutoTokenizer, FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer
+from transformers import FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer
 from datasets import load_dataset
 from peft import LoraConfig
 
 # Load Yelp Reviews dataset
 dataset = load_dataset("yelp_review_full")
+max_length = 128  # Define max_length according to your needs
 
-# Use BERT tokenizer
-tokenizer = AutoTokenizer.from_pretrained("adept/fuyu-8b")
+# Use FuyuProcessor for tokenization
+processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
 
 def tokenize_function(examples):
-    return tokenizer(examples["text"], padding="max_length", truncation=True)
+    return processor(text=examples["text"], padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
 
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
@@ -42,13 +43,13 @@ training_args = TrainingArguments(
     no_cuda=False  # Ensure CUDA is enabled
 )
 
-# Initialize Trainer
+# Initialize Trainer with default data collator
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=small_train_dataset,
     eval_dataset=small_eval_dataset,
-    tokenizer=tokenizer
+    tokenizer=processor
 )
 
 # Train
