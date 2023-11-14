@@ -1,5 +1,5 @@
 import torch
-from transformers import FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer
+from transformers import AutoTokenizer, FuyuForCausalLM, TrainingArguments, Trainer
 from datasets import load_dataset
 from peft import LoraConfig
 
@@ -7,15 +7,12 @@ from peft import LoraConfig
 dataset = load_dataset("yelp_review_full")
 max_length = 128  # Define max_length according to your needs
 
-# Use FuyuProcessor for tokenization
-processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
+# Initialize tokenizer with specified pad_token_id
+pretrained_path = "adept/fuyu-8b"  # Adjust if necessary
+tokenizer = AutoTokenizer.from_pretrained(pretrained_path, pad_token_id=0)
 
 def tokenize_function(examples):
-    # Truncate and pad manually
-    outputs = processor(text=examples["text"], return_tensors="pt")
-    outputs["input_ids"] = [ids[:max_length] + [processor.tokenizer.eos_token_id] * (max_length - len(ids)) for ids in outputs["input_ids"]]
-    outputs["attention_mask"] = [[1] * len(ids[:max_length]) + [0] * (max_length - len(ids)) for ids in outputs["input_ids"]]
-    return outputs
+    return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
 
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
@@ -24,7 +21,7 @@ small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(
 small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
 
 # Load model
-model = FuyuForCausalLM.from_pretrained("adept/fuyu-8b", load_in_4bit=True)
+model = FuyuForCausalLM.from_pretrained(pretrained_path, load_in_4bit=True)
 
 # LoRA configuration
 lora_config = LoraConfig(
@@ -47,13 +44,13 @@ training_args = TrainingArguments(
     no_cuda=False  # Ensure CUDA is enabled
 )
 
-# Initialize Trainer with default data collator
+# Initialize Trainer
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=small_train_dataset,
     eval_dataset=small_eval_dataset,
-    tokenizer=processor
+    tokenizer=tokenizer
 )
 
 # Train
