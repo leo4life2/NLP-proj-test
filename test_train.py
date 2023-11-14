@@ -1,31 +1,22 @@
 import torch
-from transformers import FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer
-from datasets import Dataset
-import random
-import string
+from transformers import AutoTokenizer, FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer
+from datasets import load_dataset
 from peft import LoraConfig
 
-# Function to generate random text
-def generate_random_text(length=100):
-    letters = string.ascii_letters + string.digits + string.punctuation + ' '
-    return ''.join(random.choice(letters) for _ in range(length))
+# Load Yelp Reviews dataset
+dataset = load_dataset("yelp_review_full")
 
-# Parameters
-num_examples = 100
-max_length = 128
-batch_size = 1
+# Use BERT tokenizer
+tokenizer = AutoTokenizer.from_pretrained("adept/fuyu-8b")
 
-# Prepare dataset
-texts = [generate_random_text(max_length) for _ in range(num_examples)]
-data = {'text': texts}
-dataset = Dataset.from_dict(data)
-
-# Tokenize dataset
-processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
 def tokenize_function(examples):
-    return processor(examples["text"], truncation=True, max_length=max_length)
+    return tokenizer(examples["text"], padding="max_length", truncation=True)
 
-tokenized_dataset = dataset.map(tokenize_function, batched=True)
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+
+# Create smaller subsets (optional)
+small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
+small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
 
 # Load model
 model = FuyuForCausalLM.from_pretrained("adept/fuyu-8b", load_in_4bit=True)
@@ -45,27 +36,19 @@ model.to('cuda')
 training_args = TrainingArguments(
     output_dir="./results",          
     num_train_epochs=1,              
-    per_device_train_batch_size=batch_size,  
+    per_device_train_batch_size=1,  
     logging_dir='./logs',            
     logging_steps=10,
     no_cuda=False  # Ensure CUDA is enabled
 )
 
-# Custom data collator
-class CustomDataCollator:
-    def __call__(self, features):
-        batch = {k: torch.tensor([dic[k] for dic in features]) for k in features[0]}
-        return batch
-
-data_collator = CustomDataCollator()
-
 # Initialize Trainer
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=tokenized_dataset,
-    tokenizer=processor,
-    data_collator=data_collator
+    train_dataset=small_train_dataset,
+    eval_dataset=small_eval_dataset,
+    tokenizer=tokenizer
 )
 
 # Train
