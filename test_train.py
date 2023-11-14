@@ -1,27 +1,31 @@
 import torch
-from transformers import AutoTokenizer, FuyuForCausalLM, TrainingArguments, Trainer
+from transformers import FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer
 from datasets import load_dataset
 from peft import LoraConfig
 
 # Load Yelp Reviews dataset
 dataset = load_dataset("yelp_review_full")
-max_length = 128  # Define max_length according to your needs
 
-# Initialize tokenizer with specified pad_token_id
-pretrained_path = "adept/fuyu-8b"  # Adjust if necessary
-tokenizer = AutoTokenizer.from_pretrained(pretrained_path, pad_token_id=0)
+# Use FuyuProcessor for tokenization
+processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
 
-def tokenize_function(examples):
-    return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
+def process_function(examples):
+    output = processor(text=examples["text"])
+    position = (output["input_ids"] == processor.tokenizer.vocab["<s>"]).nonzero(as_tuple=True)[0][0]
 
-tokenized_datasets = dataset.map(tokenize_function, batched=True)
+    output["labels"] = torch.full_like(output["input_ids"], -100)
+    output["labels"][position:] = output["input_ids"][position:]
+    
+    return output
+
+tokenized_datasets = dataset.map(process_function, batched=True)
 
 # Create smaller subsets (optional)
 small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
 small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
 
 # Load model
-model = FuyuForCausalLM.from_pretrained(pretrained_path, load_in_4bit=True)
+model = FuyuForCausalLM.from_pretrained("adept/fuyu-8b", load_in_4bit=True)
 
 # LoRA configuration
 lora_config = LoraConfig(
@@ -44,13 +48,13 @@ training_args = TrainingArguments(
     no_cuda=False  # Ensure CUDA is enabled
 )
 
-# Initialize Trainer
+# Initialize Trainer with default data collator
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=small_train_dataset,
     eval_dataset=small_eval_dataset,
-    tokenizer=tokenizer
+    tokenizer=processor
 )
 
 # Train
