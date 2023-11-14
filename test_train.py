@@ -11,7 +11,11 @@ max_length = 128  # Define max_length according to your needs
 processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
 
 def tokenize_function(examples):
-    return processor(text=examples["text"], truncation=True, max_length=max_length, return_tensors="pt")
+    # Truncate and pad manually
+    outputs = processor(text=examples["text"], return_tensors="pt")
+    outputs["input_ids"] = [ids[:max_length] + [processor.tokenizer.eos_token_id] * (max_length - len(ids)) for ids in outputs["input_ids"]]
+    outputs["attention_mask"] = [[1] * len(ids[:max_length]) + [0] * (max_length - len(ids)) for ids in outputs["input_ids"]]
+    return outputs
 
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
