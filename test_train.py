@@ -1,9 +1,9 @@
 import torch
 from transformers import FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer
-from peft import LoraConfig
 from datasets import Dataset
 import random
 import string
+from peft import LoraConfig
 
 # Function to generate random text
 def generate_random_text(length=100):
@@ -27,8 +27,17 @@ def tokenize_function(examples):
 
 tokenized_dataset = dataset.map(tokenize_function, batched=True)
 
-# Load model and use DataParallel for multi-GPU
+# Load model
 model = FuyuForCausalLM.from_pretrained("adept/fuyu-8b", load_in_4bit=True)
+
+# LoRA configuration
+lora_config = LoraConfig(
+    target_modules=["query_key_value"],
+    init_lora_weights=False
+)
+model.add_adapter(lora_config, adapter_name="lora")
+
+# Use DataParallel for multi-GPU
 model = torch.nn.DataParallel(model)
 model.to('cuda')
 
@@ -39,12 +48,12 @@ training_args = TrainingArguments(
     per_device_train_batch_size=batch_size,  
     logging_dir='./logs',            
     logging_steps=10,
+    no_cuda=False  # Ensure CUDA is enabled
 )
 
 # Custom data collator
 class CustomDataCollator:
     def __call__(self, features):
-        # Convert list of features into a batch of tensors
         batch = {k: torch.tensor([dic[k] for dic in features]) for k in features[0]}
         return batch
 
@@ -62,7 +71,7 @@ trainer = Trainer(
 # Train
 trainer.train()
 
-# Print memory usage (for each GPU)
+# Print memory usage for each GPU
 for i in range(torch.cuda.device_count()):
     print(f"GPU {i}:")
     print(f"Allocated memory: {torch.cuda.memory_allocated(i) / 1e9:.2f} GB")
