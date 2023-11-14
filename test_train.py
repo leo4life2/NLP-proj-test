@@ -11,7 +11,7 @@ max_length = 128  # Define max_length according to your needs
 processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
 
 def tokenize_function(examples):
-    return processor(text=examples["text"], padding="max_length", truncation=True, max_length=max_length, return_tensors="pt")
+    return processor(text=examples["text"], truncation=True, max_length=max_length, return_tensors="pt")
 
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
