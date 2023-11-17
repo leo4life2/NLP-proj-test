@@ -11,7 +11,7 @@ dataset = load_dataset("yelp_review_full")
 tokenizer = AutoTokenizer.from_pretrained("adept/fuyu-8b")
 
 def process_function(examples):
-    output = tokenizer(examples["text"], return_tensors="pt", truncation=True)
+    output = tokenizer(examples["text"])
     max_length = max(len(ids) for ids in output["input_ids"])  # Find max length in this batch
 
     padded_input_ids = []
