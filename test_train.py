@@ -1,5 +1,5 @@
 import torch
-from transformers import FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer
+from transformers import FuyuProcessor, FuyuForCausalLM, TrainingArguments, Trainer, AutoTokenizer
 from datasets import load_dataset
 from peft import LoraConfig
 
@@ -7,19 +7,11 @@ from peft import LoraConfig
 dataset = load_dataset("yelp_review_full")
 
 # Use FuyuProcessor for tokenization
-processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
+# processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
+tokenizer = AutoTokenizer.from_pretrained("adept/fuyu-8b")
 
 def process_function(examples):
-    output = processor(text=examples["text"], return_tensors="pt").to("cuda:0")
-    # Create a mask where the condition is True
-    mask = output["input_ids"] == processor.tokenizer.vocab["<s>"]
-    # Find the position of the first occurrence of <s>
-    position = mask.nonzero(as_tuple=True)[0][0]
-
-    output["labels"] = torch.full_like(output["input_ids"], -100)
-    output["labels"][position:] = output["input_ids"][position:]
-    
-    return output
+    return tokenizer(examples["text"])
 
 
 tokenized_datasets = dataset.map(process_function, batched=True)
