@@ -50,7 +50,7 @@ trainer = Trainer(
     args=training_args,
     train_dataset=small_train_dataset,
     eval_dataset=small_eval_dataset,
-    tokenizer=processor
+    tokenizer=tokenizer
 )
 
 # Train
