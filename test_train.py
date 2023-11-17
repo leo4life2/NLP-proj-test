@@ -17,8 +17,8 @@ def process_function(examples):
 tokenized_datasets = dataset.map(process_function, batched=True)
 
 # Create smaller subsets (optional)
-small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
-small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
+small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(10))
+small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(10))
 
 # Load model
 model = FuyuForCausalLM.from_pretrained("adept/fuyu-8b", load_in_4bit=True)
