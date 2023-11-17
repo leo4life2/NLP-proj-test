@@ -11,20 +11,33 @@ dataset = load_dataset("yelp_review_full")
 tokenizer = AutoTokenizer.from_pretrained("adept/fuyu-8b")
 
 def process_function(examples):
-    output = tokenizer(examples["text"], return_tensors="pt", padding=True, truncation=True).to("cuda:0")
-    # Create a mask where the condition is True
-    mask = output["input_ids"] == tokenizer.vocab["<s>"]
-    
-    print("type of input ids", type(output["input_ids"]))
-    print("input ids shape", output["input_ids"].shape)
-    print("tokenizer vocab", tokenizer.vocab)
-    print("mask", mask)
-    
-    # Find the position of the first occurrence of <s>
-    position = mask.nonzero(as_tuple=True)[0][0]
+    output = tokenizer(examples["text"], return_tensors="pt", truncation=True)
+    max_length = max(len(ids) for ids in output["input_ids"])  # Find max length in this batch
 
-    output["labels"] = torch.full_like(output["input_ids"], -100)
-    output["labels"][position:] = output["input_ids"][position:]
+    padded_input_ids = []
+
+    for ids in output["input_ids"]:
+        # Calculate the number of padding tokens needed
+        num_padding_tokens = max_length - len(ids)
+        # Pad the input_ids
+        padded_ids = torch.cat([
+            torch.full((num_padding_tokens,), 0, dtype=torch.long),  # Using 0 as the pad token ID
+            torch.tensor(ids)
+        ])
+
+        padded_input_ids.append(padded_ids)
+
+    # Convert list of padded input ids to a tensor and move to the specified device (e.g., CUDA)
+    padded_input_ids = torch.stack(padded_input_ids).to("cuda:0")
+
+    # Process the labels similarly, if necessary
+    output["labels"] = torch.full_like(padded_input_ids, -100)
+    for i, ids in enumerate(padded_input_ids):
+        position = (ids == tokenizer.vocab["<s>"]).nonzero(as_tuple=True)[0][0]
+        output["labels"][i, position:] = ids[position:]
+
+    return {"input_ids": padded_input_ids, "labels": output["labels"]}
+
 
 
 tokenized_datasets = dataset.map(process_function, batched=True)
