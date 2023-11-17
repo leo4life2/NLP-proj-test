@@ -11,7 +11,14 @@ dataset = load_dataset("yelp_review_full")
 tokenizer = AutoTokenizer.from_pretrained("adept/fuyu-8b")
 
 def process_function(examples):
-    return tokenizer(examples["text"])
+    output = tokenizer(examples["text"])
+    # Create a mask where the condition is True
+    mask = output["input_ids"] == tokenizer.vocab["<s>"]
+    # Find the position of the first occurrence of <s>
+    position = mask.nonzero(as_tuple=True)[0][0]
+
+    output["labels"] = torch.full_like(output["input_ids"], -100)
+    output["labels"][position:] = output["input_ids"][position:]
 
 
 tokenized_datasets = dataset.map(process_function, batched=True)
