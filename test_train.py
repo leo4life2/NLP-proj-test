@@ -10,6 +10,8 @@ dataset = load_dataset("yelp_review_full")
 # processor = FuyuProcessor.from_pretrained("adept/fuyu-8b")
 tokenizer = AutoTokenizer.from_pretrained("adept/fuyu-8b")
 
+TOKEN_BBOX_OPEN_STRING = "<0x00>"
+
 def process_function(examples):
     output = tokenizer(examples["text"])
     max_length = max(len(ids) for ids in output["input_ids"])  # Find max length in this batch
@@ -30,16 +32,21 @@ def process_function(examples):
     # Convert list of padded input ids to a tensor and move to the specified device (e.g., CUDA)
     padded_input_ids = torch.stack(padded_input_ids).to("cuda:0")
     
-    print("padded_input_ids: ", padded_input_ids)
-
-    # Process the labels similarly, if necessary
+    # Process the labels
     output["labels"] = torch.full_like(padded_input_ids, -100)
+    start_id = tokenizer.convert_tokens_to_ids(TOKEN_BBOX_OPEN_STRING)
     for i, ids in enumerate(padded_input_ids):
-        position = (ids == tokenizer.vocab["<s>"]).nonzero(as_tuple=True)[0][0]
-        output["labels"][i, position:] = ids[position:]
+        # Check for the presence of the start token
+        mask = ids == start_id
+        nonzero_indices = mask.nonzero(as_tuple=True)[0]
+        if len(nonzero_indices) > 0:
+            position = nonzero_indices[0]
+            output["labels"][i, position:] = ids[position:]
+        else:
+            # Handle the case where the start token is not present
+            pass
 
     return {"input_ids": padded_input_ids, "labels": output["labels"]}
-
 
 
 tokenized_datasets = dataset.map(process_function, batched=True)
