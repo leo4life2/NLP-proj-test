@@ -11,7 +11,7 @@ dataset = load_dataset("yelp_review_full")
 tokenizer = AutoTokenizer.from_pretrained("adept/fuyu-8b")
 
 def process_function(examples):
-    output = tokenizer(examples["text"], return_tensors="pt")
+    output = tokenizer(examples["text"], return_tensors="pt", padding=True, truncation=True).to("cuda:0")
     # Create a mask where the condition is True
     mask = output["input_ids"] == tokenizer.vocab["<s>"]
     
