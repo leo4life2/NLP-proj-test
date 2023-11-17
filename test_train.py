@@ -29,6 +29,8 @@ def process_function(examples):
 
     # Convert list of padded input ids to a tensor and move to the specified device (e.g., CUDA)
     padded_input_ids = torch.stack(padded_input_ids).to("cuda:0")
+    
+    print("padded_input_ids: ", padded_input_ids)
 
     # Process the labels similarly, if necessary
     output["labels"] = torch.full_like(padded_input_ids, -100)
