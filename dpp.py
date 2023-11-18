@@ -11,7 +11,9 @@ from torchvision import datasets, transforms
 # Define a simple dataset (for example, MNIST)
 class SimpleDataset(Dataset):
     def __init__(self):
+        print("Initializing dataset...")
         self.data = datasets.MNIST(root='data', train=True, download=True, transform=transforms.ToTensor())
+        print("Dataset initialized.")
 
     def __len__(self):
         return len(self.data)
@@ -37,16 +39,22 @@ class SimpleModel(nn.Module):
 def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
+    print(f"Rank {rank}: Initializing process group...")
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    print(f"Rank {rank}: Process group initialized.")
 
 def cleanup():
+    print("Cleaning up...")
     dist.destroy_process_group()
+    print("Cleaned up.")
 
 def train(rank, world_size):
+    print(f"Rank {rank}: Starting training...")
     setup(rank, world_size)
 
     # Create model and move it to GPU with id rank
     model = SimpleModel().to(rank)
+    print(f"Rank {rank}: Model created and moved to GPU.")
     ddp_model = DDP(model, device_ids=[rank])
 
     dataset = SimpleDataset()
@@ -57,6 +65,7 @@ def train(rank, world_size):
     optimizer = optim.SGD(ddp_model.parameters(), lr=0.01)
 
     for epoch in range(10):
+        print(f"Rank {rank}: Starting epoch {epoch + 1}...")
         for batch_idx, (data, target) in enumerate(loader):
             data, target = data.to(rank), target.to(rank)
             optimizer.zero_grad()
@@ -64,13 +73,19 @@ def train(rank, world_size):
             loss = criterion(outputs, target)
             loss.backward()
             optimizer.step()
+            
+            if batch_idx % 10 == 0:
+                print(f"Rank {rank}: Epoch {epoch + 1}, Batch {batch_idx}, Loss: {loss.item()}")
+        print(f"Rank {rank}: Finished epoch {epoch + 1}.")
 
     cleanup()
+    print(f"Rank {rank}: Training completed.")
 
 def main():
     world_size = 2
     hostnames = os.getenv('WORKER_HOSTNAMES').split(',')
     rank = hostnames.index(socket.gethostname())
+    print(f"Running on hostname: {socket.gethostname()}, Rank: {rank}")
     train(rank, world_size)
 
 if __name__ == "__main__":
