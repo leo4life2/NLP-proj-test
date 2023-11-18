@@ -23,10 +23,12 @@ class SimpleDataset(Dataset):
 
 class SimpleModel(nn.Module):
     def __init__(self):
+        print("Initializing model...")
         super(SimpleModel, self).__init__()
         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         self.fc = nn.Linear(320, 10)
+        print("Model initialized.")
 
     def forward(self, x):
         x = torch.relu(torch.max_pool2d(self.conv1(x), 2))
@@ -36,14 +38,17 @@ class SimpleModel(nn.Module):
         return x
 
 def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
+    print(f"Rank {rank}: Setting up process group...")
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    print(f"Rank {rank}: Process group set up.")
 
 def cleanup():
+    print("Cleaning up process group...")
     dist.destroy_process_group()
+    print("Process group cleaned up.")
 
 def evaluate(model, test_loader, device):
+    print("Starting evaluation...")
     model.eval()
     correct = 0
     total = 0
@@ -57,9 +62,11 @@ def evaluate(model, test_loader, device):
 
     accuracy = 100 * correct / total
     print(f"Test Accuracy: {accuracy}%")
+    print("Evaluation completed.")
 
 def train(rank, world_size):
-    device = torch.device(f"cuda:{rank % 2}")  # Assuming 2 GPUs per node
+    print(f"Rank {rank}: Starting training...")
+    device = torch.device(f"cuda:{rank % 2}")
     torch.cuda.set_device(device)
 
     model = SimpleModel().to(device)
@@ -73,6 +80,7 @@ def train(rank, world_size):
     optimizer = optim.SGD(ddp_model.parameters(), lr=0.01)
 
     for epoch in range(10):
+        print(f"Rank {rank}: Starting epoch {epoch + 1}...")
         sampler.set_epoch(epoch)
         for batch_idx, (data, target) in enumerate(loader):
             data, target = data.to(device), target.to(device)
@@ -85,27 +93,31 @@ def train(rank, world_size):
             if batch_idx % 10 == 0:
                 print(f"Rank {rank}: Epoch {epoch + 1}, Batch {batch_idx}, Loss: {loss.item()}")
 
-    # Evaluation
-    if rank % 2 == 0:  # Evaluate only on one GPU per node
-        test_dataset = datasets.MNIST(root='data', train=False, download=True, transform=transforms.ToTensor())
-        test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-        evaluate(model, test_loader, device)
+        print(f"Rank {rank}: Finished epoch {epoch + 1}.")
 
-    # VRAM Usage
+    print(f"Rank {rank}: Training completed. Starting evaluation...")
+    test_dataset = datasets.MNIST(root='data', train=False, download=True, transform=transforms.ToTensor())
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    evaluate(model, test_loader, device)
+
     current_vram = torch.cuda.memory_allocated(device) / (1024 ** 3)
     peak_vram = torch.cuda.max_memory_allocated(device) / (1024 ** 3)
     print(f"Rank {rank}: Current VRAM Usage: {current_vram} GB, Peak: {peak_vram} GB")
 
 def main():
+    print("Parsing arguments...")
     parser = argparse.ArgumentParser(description="PyTorch Distributed Training Example")
     parser.add_argument('--one_node', action='store_true', help='Run training on a single node')
     args = parser.parse_args()
 
+    print("Checking training mode...")
     world_size = 4  # Total GPUs across all nodes
     if args.one_node:
+        print("Running in single node mode.")
         world_size = 1
         rank = 0
     else:
+        print("Running in distributed mode.")
         hostnames = os.getenv('WORKER_HOSTNAMES').split(',')
         node_rank = hostnames.index(socket.gethostname())
         rank = node_rank * 2  # Assuming 2 GPUs per node
@@ -115,4 +127,6 @@ def main():
     cleanup()
 
 if __name__ == "__main__":
+    print("Starting script...")
     main()
+    print("Script ended.")
