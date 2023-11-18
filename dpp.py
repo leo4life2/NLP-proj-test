@@ -53,7 +53,10 @@ def train(rank, world_size):
     # Create model and move it to GPU with id rank
     model = SimpleModel().to('cuda')
     print(f"Rank {rank}: Model created and moved to GPU.")
-    ddp_model = DDP(model, device_ids=[rank])
+    
+    # Only 1 GPU is used in this example
+    device_id = 0
+    ddp_model = DDP(model, device_ids=[device_id])
 
     dataset = SimpleDataset()
     sampler = torch.utils.data.distributed.DistributedSampler(dataset, num_replicas=world_size, rank=rank)
