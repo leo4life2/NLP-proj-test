@@ -37,8 +37,6 @@ class SimpleModel(nn.Module):
         return x
 
 def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
     print(f"Rank {rank}: Initializing process group...")
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
     print(f"Rank {rank}: Process group initialized.")
