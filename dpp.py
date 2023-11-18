@@ -51,7 +51,7 @@ def train(rank, world_size):
     setup(rank, world_size)
 
     # Create model and move it to GPU with id rank
-    model = SimpleModel().to(rank)
+    model = SimpleModel().to(0)
     print(f"Rank {rank}: Model created and moved to GPU.")
     ddp_model = DDP(model, device_ids=[rank])
 
