@@ -51,7 +51,7 @@ def train(rank, world_size):
     setup(rank, world_size)
 
     # Create model and move it to GPU with id rank
-    model = SimpleModel().to(0)
+    model = SimpleModel().to('cuda')
     print(f"Rank {rank}: Model created and moved to GPU.")
     ddp_model = DDP(model, device_ids=[rank])
 
@@ -59,13 +59,13 @@ def train(rank, world_size):
     sampler = torch.utils.data.distributed.DistributedSampler(dataset, num_replicas=world_size, rank=rank)
     loader = DataLoader(dataset, batch_size=64, sampler=sampler)
 
-    criterion = nn.CrossEntropyLoss().to(rank)
+    criterion = nn.CrossEntropyLoss().to('cuda')
     optimizer = optim.SGD(ddp_model.parameters(), lr=0.01)
 
     for epoch in range(10):
         print(f"Rank {rank}: Starting epoch {epoch + 1}...")
         for batch_idx, (data, target) in enumerate(loader):
-            data, target = data.to(rank), target.to(rank)
+            data, target = data.to('cuda'), target.to('cuda')
             optimizer.zero_grad()
             outputs = ddp_model(data)
             loss = criterion(outputs, target)
