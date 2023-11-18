@@ -100,7 +100,7 @@ def train(rank, world_size):
     # Evaluation step
     test_dataset = datasets.MNIST(root='data', train=False, download=True, transform=transforms.ToTensor())
     test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-    evaluate(model, test_loader, device_id)
+    evaluate(model, test_loader)
 
     # Print VRAM usage
     current_vram = torch.cuda.memory_allocated(device_id) / (1024 ** 3)  # Convert to GB
