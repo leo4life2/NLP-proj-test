@@ -45,6 +45,21 @@ def cleanup():
     print("Cleaning up...")
     dist.destroy_process_group()
     print("Cleaned up.")
+    
+def evaluate(model, test_loader):
+    model.eval()  # Set the model to evaluation mode
+    correct = 0
+    total = 0
+    with torch.no_grad():  # Disable gradient tracking
+        for data, target in test_loader:
+            data, target = data.to('cuda'), target.to('cuda')
+            outputs = model(data)
+            _, predicted = torch.max(outputs.data, 1)
+            total += target.size(0)
+            correct += (predicted == target).sum().item()
+
+    accuracy = 100 * correct / total
+    print(f"Test Accuracy: {accuracy}%")
 
 def train(rank, world_size):
     print(f"Rank {rank}: Starting training...")
@@ -81,6 +96,16 @@ def train(rank, world_size):
 
     cleanup()
     print(f"Rank {rank}: Training completed.")
+    
+    # Evaluation step
+    test_dataset = datasets.MNIST(root='data', train=False, download=True, transform=transforms.ToTensor())
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    evaluate(model, test_loader, device_id)
+
+    # Print VRAM usage
+    current_vram = torch.cuda.memory_allocated(device_id) / (1024 ** 3)  # Convert to GB
+    peak_vram = torch.cuda.max_memory_allocated(device_id) / (1024 ** 3)  # Convert to GB
+    print(f"Rank {rank}: Current VRAM Usage: {current_vram} GB, Peak: {peak_vram} GB")
 
 def main():
     world_size = 2
