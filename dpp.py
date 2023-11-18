@@ -1,6 +1,7 @@
 import os
 import socket
 import torch
+import argparse
 import torch.nn as nn
 import torch.optim as optim
 import torch.distributed as dist
@@ -108,10 +109,20 @@ def train(rank, world_size):
     print(f"Rank {rank}: Current VRAM Usage: {current_vram} GB, Peak: {peak_vram} GB")
 
 def main():
-    world_size = 2
-    hostnames = os.getenv('WORKER_HOSTNAMES').split(',')
-    rank = hostnames.index(socket.gethostname())
-    print(f"Running on hostname: {socket.gethostname()}, Rank: {rank}")
+    parser = argparse.ArgumentParser(description="PyTorch Distributed Training Example")
+    parser.add_argument('--one_node', action='store_true', help='Run training on a single node')
+    args = parser.parse_args()
+
+    if args.one_node:
+        print("Running in single node mode.")
+        world_size = 1
+        rank = 0
+    else:
+        print("Running in distributed mode.")
+        world_size = 2
+        hostnames = os.getenv('WORKER_HOSTNAMES').split(',')
+        rank = hostnames.index(socket.gethostname())
+
     train(rank, world_size)
 
 if __name__ == "__main__":
