@@ -104,29 +104,28 @@ def train(rank, world_size):
     current_vram = torch.cuda.memory_allocated(device) / (1024 ** 3)
     peak_vram = torch.cuda.max_memory_allocated(device) / (1024 ** 3)
     print(f"Rank {rank}: Current VRAM Usage: {current_vram} GB, Peak: {peak_vram} GB")
-    
-def run(rank, world_size):
-    print(f"Starting process for Rank {rank}.")
-    setup(rank, world_size)
-    train(rank, world_size)
+
+def run(local_rank, world_size, node_rank):
+    global_rank = node_rank * 2 + local_rank
+    print(f"Starting process for Rank {global_rank}.")
+    setup(global_rank, world_size)
+    train(global_rank, world_size)
     cleanup()
-    
+
 def main():
     parser = argparse.ArgumentParser(description="PyTorch Distributed Training Example")
     parser.add_argument('--one_node', action='store_true', help='Run training on a single node')
     args = parser.parse_args()
 
     if args.one_node:
-        print("Running in single node mode.")
         world_size = 1
-        run(0, world_size)
+        run(0, world_size, 0)
     else:
-        print("Running in distributed mode.")
         world_size = 4  # Total GPUs across all nodes
         hostnames = os.getenv('WORKER_HOSTNAMES').split(',')
         node_rank = hostnames.index(socket.gethostname())
-        mp.spawn(run, args=(world_size,), nprocs=2, join=True, start_method='spawn')
-
+        mp.spawn(run, args=(world_size, node_rank), nprocs=2, join=True, start_method='spawn')
+        
 if __name__ == "__main__":
     print("Starting script...")
     main()
